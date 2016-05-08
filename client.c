@@ -12,7 +12,9 @@ void alloc_buf(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
 
 static void on_close(uv_handle_t* handle) 
 {
+    uv_unref(handle);
     free(handle);
+    uv_loop_close(uv_default_loop());
 }
 
 static void on_send_request(uv_udp_send_t* req, int status) 
@@ -39,7 +41,7 @@ static void send_request(uv_udp_t* handle)
 
 static void on_recv_resp(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags) 
 {
-    if (nread) {
+    if (nread && (sizeof(resp_data)==nread)) {
         resp_data* data = (resp_data*) buf->base;
         printf("RECEIVED DATA:\n");
         printf("Brand: %s\n", data->brand);
@@ -48,10 +50,10 @@ static void on_recv_resp(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, c
         printf("Data avg[0]:%lf\n", data->avg[0]);
         printf("Data avg[1]:%lf\n", data->avg[1]);
         printf("Data avg[2]:%lf\n", data->avg[2]);
+        uv_close((uv_handle_t*) handle, on_close);
     } else {
         send_request(handle); 
     }
-    uv_stop(uv_default_loop());
     free(buf->base);
 }
 
@@ -80,8 +82,7 @@ int main(int argc, char** argv)
     recv_resp(handle);
     
     r = uv_run(loop, UV_RUN_DEFAULT);
-
-    uv_close((uv_handle_t*) handle, on_close);
-
+    
+    
     return r;
 }

@@ -5,6 +5,12 @@
 
 static void send_resp(uv_udp_t* handle, resp_data* data, const struct sockaddr* addr);
 
+static void sigint_handler(int sig) /* SIGINT handler */   
+{
+    printf("Caught SIGINT!\n");
+    exit(0);
+} 
+
 static void on_close(uv_handle_t* handle) 
 {
     free(handle);
@@ -79,6 +85,9 @@ int main(int argc, char* argv[])
 {
     int r;
     struct sockaddr_in addr;
+    
+    signal(SIGINT, sigint_handler);
+    
     uv_loop_t* loop = uv_default_loop();
 
     uv_ip4_addr("0.0.0.0", 7000, &addr);
