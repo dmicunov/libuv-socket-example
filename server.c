@@ -3,21 +3,23 @@
 #include <stdlib.h>
 #include <string.h>
 
-static uv_udp_t* g_handler;
+static uv_udp_t g_handler;  
 
 static void send_resp(uv_udp_t* handle, resp_data* data, const struct sockaddr* addr);
 
 static void on_close(uv_handle_t* handle) 
 {
-    uv_unref(handle);
-    free(handle);
     uv_loop_close(uv_default_loop());
 }
 
 static void on_signal(uv_signal_t* handler, int signum)
 {
     uv_signal_stop(handler);
-    uv_close((uv_handle_t*) g_handler, on_close);
+    if(uv_is_active((uv_handle_t*)&g_handler)) {
+		printf("Closing UDP %d\n",uv_udp_recv_stop(&g_handler));
+	}
+	uv_unref((uv_handle_t*)&g_handler);
+	uv_close((uv_handle_t*) &g_handler, on_close);
 }
 
 static void alloc_buf(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) 
@@ -91,29 +93,27 @@ static void recv_req(uv_udp_t* handle)
 int main(int argc, char* argv[])
 {
     int r;
+    int ret;
     struct sockaddr_in addr;
-    uv_signal_t sigint;  
-    
-    uv_loop_t* loop = uv_default_loop();
+    uv_signal_t sigint;
 
     uv_ip4_addr("0.0.0.0", 7000, &addr);
 
-    g_handler = (uv_udp_t*) malloc(sizeof(uv_udp_t));
-    uv_udp_init(loop, g_handler);
+    uv_udp_init(uv_default_loop(), &g_handler);
     
-    uv_signal_init(loop, &sigint);
+    uv_signal_init(uv_default_loop(), &sigint);
     uv_signal_start(&sigint, on_signal, SIGINT);
     
-    r = uv_udp_bind(g_handler, (const struct sockaddr*) &addr, 0);
+    r = uv_udp_bind(&g_handler, (const struct sockaddr*) &addr, 0);
     
     if (r) {
         fprintf(stderr, "uv_udp_bind error: %s\n", uv_strerror(r));
         return 1;
     }
 
-    recv_req(g_handler);
+    recv_req(&g_handler);
 
-    r = uv_run(loop, UV_RUN_DEFAULT);
-    
+    r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+	
     return r;
 }

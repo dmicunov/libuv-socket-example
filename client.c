@@ -73,7 +73,7 @@ int main(int argc, char** argv)
     uv_loop_t* loop = uv_default_loop();
     
     //HARDCODED IP ADDRESS OF SERVER 
-    uv_ip4_addr("192.168.245.130", 7000, &server_addr);
+    uv_ip4_addr("10.30.10.76", 7000, &server_addr);
 
     // closed below, freed in on_close()
     uv_udp_t* handle = (uv_udp_t*) malloc(sizeof(uv_udp_t));
