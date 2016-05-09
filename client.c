@@ -47,6 +47,7 @@ static void on_recv_resp(uv_udp_t* handle, ssize_t nread, const uv_buf_t* buf, c
         printf("Brand: %s\n", data->brand);
         printf("Total memory: %lu\n", data->total_memory);
         printf("Uptime: %lf\n", data->uptime);
+        printf("Speed: %d\n", data->speed);
         printf("Data avg[0]:%lf\n", data->avg[0]);
         printf("Data avg[1]:%lf\n", data->avg[1]);
         printf("Data avg[2]:%lf\n", data->avg[2]);

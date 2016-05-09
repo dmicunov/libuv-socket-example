@@ -3,17 +3,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void send_resp(uv_udp_t* handle, resp_data* data, const struct sockaddr* addr);
+static uv_udp_t* g_handle;
 
-static void sigint_handler(int sig) /* SIGINT handler */   
-{
-    printf("Caught SIGINT!\n");
-    exit(0);
-} 
+static void send_resp(uv_udp_t* handle, resp_data* data, const struct sockaddr* addr);
 
 static void on_close(uv_handle_t* handle) 
 {
+    uv_unref(handle);
     free(handle);
+    uv_loop_close(uv_default_loop());
+}
+
+static void on_signal(uv_signal_t* handler, int signum)
+{
+    uv_signal_stop(handler);
+    uv_close((uv_handle_t*) g_handle, on_close);
 }
 
 static void alloc_buf(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) 
@@ -30,10 +34,12 @@ static void prepare_resp_data(resp_data* data)
     uv_loadavg(data->avg);
     strncpy((char*)data->brand, cpus[0].model, strlen(cpus[0].model));
     data->total_memory = uv_get_total_memory();
+    data->speed = cpus[0].speed;
     uv_uptime(&data->uptime);
     
     printf("SENT DATA:\n");
     printf("Brand: %s\n", data->brand);
+    printf("Speed: %d\n", data->speed);
     printf("Total memory: %lu\n", data->total_memory);
     printf("Uptime: %lf\n", data->uptime);
     printf("Data avg[0]:%lf\n", data->avg[0]);
@@ -74,7 +80,8 @@ static void send_resp(uv_udp_t* handle, resp_data* data, const struct sockaddr* 
     }
 }
 
-static void recv_req(uv_udp_t* handle) {
+static void recv_req(uv_udp_t* handle) 
+{
     int r = uv_udp_recv_start(handle, alloc_buf, on_recv);
     if (r) {
         fprintf(stderr, "uv_udp_recv_start error: %s\n", uv_strerror(r));
@@ -85,28 +92,28 @@ int main(int argc, char* argv[])
 {
     int r;
     struct sockaddr_in addr;
-    
-    signal(SIGINT, sigint_handler);
+    uv_signal_t sigint;  
     
     uv_loop_t* loop = uv_default_loop();
 
     uv_ip4_addr("0.0.0.0", 7000, &addr);
 
-    uv_udp_t* handle = (uv_udp_t*) malloc(sizeof(uv_udp_t));
-    uv_udp_init(loop, handle);
-
-    r = uv_udp_bind(handle, (const struct sockaddr*) &addr, 0);
+    g_handle = (uv_udp_t*) malloc(sizeof(uv_udp_t));
+    uv_udp_init(loop, g_handle);
+    
+    uv_signal_init(loop, &sigint);
+    uv_signal_start(&sigint, on_signal, SIGINT);
+    
+    r = uv_udp_bind(g_handle, (const struct sockaddr*) &addr, 0);
     
     if (r) {
         fprintf(stderr, "uv_udp_bind error: %s\n", uv_strerror(r));
         return 1;
     }
 
-    recv_req(handle);
+    recv_req(g_handle);
 
     r = uv_run(loop, UV_RUN_DEFAULT);
-
-    uv_close((uv_handle_t*) handle, on_close);
-
+    
     return r;
 }
