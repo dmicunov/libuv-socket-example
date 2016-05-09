@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static uv_udp_t* g_handle;
+static uv_udp_t* g_handler;
 
 static void send_resp(uv_udp_t* handle, resp_data* data, const struct sockaddr* addr);
 
@@ -17,7 +17,7 @@ static void on_close(uv_handle_t* handle)
 static void on_signal(uv_signal_t* handler, int signum)
 {
     uv_signal_stop(handler);
-    uv_close((uv_handle_t*) g_handle, on_close);
+    uv_close((uv_handle_t*) g_handler, on_close);
 }
 
 static void alloc_buf(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) 
@@ -98,20 +98,20 @@ int main(int argc, char* argv[])
 
     uv_ip4_addr("0.0.0.0", 7000, &addr);
 
-    g_handle = (uv_udp_t*) malloc(sizeof(uv_udp_t));
-    uv_udp_init(loop, g_handle);
+    g_handler = (uv_udp_t*) malloc(sizeof(uv_udp_t));
+    uv_udp_init(loop, g_handler);
     
     uv_signal_init(loop, &sigint);
     uv_signal_start(&sigint, on_signal, SIGINT);
     
-    r = uv_udp_bind(g_handle, (const struct sockaddr*) &addr, 0);
+    r = uv_udp_bind(g_handler, (const struct sockaddr*) &addr, 0);
     
     if (r) {
         fprintf(stderr, "uv_udp_bind error: %s\n", uv_strerror(r));
         return 1;
     }
 
-    recv_req(g_handle);
+    recv_req(g_handler);
 
     r = uv_run(loop, UV_RUN_DEFAULT);
     
