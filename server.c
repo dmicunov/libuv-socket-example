@@ -7,7 +7,7 @@ static uv_udp_t g_handler;
 
 static void send_resp(uv_udp_t* handle, resp_data* data, const struct sockaddr* addr);
 
-static void on_walk_cleanup(uv_handle_t* handle, void* dummy_data)
+static void on_walk_cleanup(uv_handle_t* handle, void* data)
 {
 	uv_close(handle, NULL);
 }
