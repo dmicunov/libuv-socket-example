@@ -103,7 +103,7 @@ int main(int argc, char* argv[])
 {
     int r;
     struct sockaddr_in addr;
-    uv_signal_t sigint;
+    uv_signal_t sigint, sigterm;
 
     uv_ip4_addr("0.0.0.0", 7000, &addr);
 
@@ -111,6 +111,8 @@ int main(int argc, char* argv[])
     
     uv_signal_init(uv_default_loop(), &sigint);
     uv_signal_start(&sigint, on_signal, SIGINT);
+    uv_signal_init(uv_default_loop(), &sigterm);
+    uv_signal_start(&sigterm, on_signal, SIGTERM);
 		
 	r = uv_udp_bind(&g_handler, (const struct sockaddr*) &addr, 0);
     
