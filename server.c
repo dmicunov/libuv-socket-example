@@ -7,19 +7,28 @@ static uv_udp_t g_handler;
 
 static void send_resp(uv_udp_t* handle, resp_data* data, const struct sockaddr* addr);
 
-static void on_close(uv_handle_t* handle) 
+static void on_walk_cleanup(uv_handle_t* handle, void* dummy_data)
 {
-    uv_loop_close(uv_default_loop());
+	uv_close(handle, NULL);
 }
 
-static void on_signal(uv_signal_t* handler, int signum)
+static void on_close(uv_handle_t* handle) 
+{   
+	//http://stackoverflow.com/questions/25615340/closing-libuv-handles-correctly
+    uv_stop(uv_default_loop());
+	uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+	uv_walk(uv_default_loop(), on_walk_cleanup, NULL);
+	uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+	uv_loop_close(uv_default_loop());
+}
+
+static void on_signal(uv_signal_t* signal, int signum)
 {
-    uv_signal_stop(handler);
     if(uv_is_active((uv_handle_t*)&g_handler)) {
-		printf("Closing UDP %d\n",uv_udp_recv_stop(&g_handler));
+		uv_udp_recv_stop(&g_handler);
 	}
-	uv_unref((uv_handle_t*)&g_handler);
 	uv_close((uv_handle_t*) &g_handler, on_close);
+	uv_signal_stop(signal);
 }
 
 static void alloc_buf(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) 
@@ -93,7 +102,6 @@ static void recv_req(uv_udp_t* handle)
 int main(int argc, char* argv[])
 {
     int r;
-    int ret;
     struct sockaddr_in addr;
     uv_signal_t sigint;
 
@@ -103,8 +111,8 @@ int main(int argc, char* argv[])
     
     uv_signal_init(uv_default_loop(), &sigint);
     uv_signal_start(&sigint, on_signal, SIGINT);
-    
-    r = uv_udp_bind(&g_handler, (const struct sockaddr*) &addr, 0);
+		
+	r = uv_udp_bind(&g_handler, (const struct sockaddr*) &addr, 0);
     
     if (r) {
         fprintf(stderr, "uv_udp_bind error: %s\n", uv_strerror(r));
